@@ -161,8 +161,6 @@ class DetokenizerManager(MultiHttpWorkerDetokenizerMixin):
         if not matched:
             return output
 
-        # TODO(lmzheng): handle the case where multiple stop strs are hit
-
         # Trim stop str.
         if isinstance(matched, str) and isinstance(output, str):
             pos = output.find(matched)

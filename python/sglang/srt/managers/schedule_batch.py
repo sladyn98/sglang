@@ -1159,6 +1159,32 @@ class Req(ReqDllmMixin):
 
         return False
 
+    def _find_earliest_stop_str(self, tail_str: str) -> Optional[str]:
+        decoded_text = self.decoded_text
+
+        if decoded_text and tail_str:
+            max_overlap = min(len(decoded_text), len(tail_str))
+            overlap = 0
+            for i in range(max_overlap, 0, -1):
+                if decoded_text.endswith(tail_str[:i]):
+                    overlap = i
+                    break
+            text = decoded_text + tail_str[overlap:]
+        else:
+            text = decoded_text or tail_str
+
+        earliest_pos = None
+        earliest_stop_str = None
+        for stop_str in self.sampling_params.stop_strs:
+            if not stop_str:
+                continue
+            pos = text.find(stop_str)
+            if pos != -1 and (earliest_pos is None or pos < earliest_pos):
+                earliest_pos = pos
+                earliest_stop_str = stop_str
+
+        return earliest_stop_str
+
     def _check_str_based_finish(self):
         if (
             len(self.sampling_params.stop_strs) > 0
@@ -1168,10 +1194,10 @@ class Req(ReqDllmMixin):
 
             # Check stop strings
             if len(self.sampling_params.stop_strs) > 0:
-                for stop_str in self.sampling_params.stop_strs:
-                    if stop_str in tail_str or stop_str in self.decoded_text:
-                        self.finished_reason = FINISH_MATCHED_STR(matched=stop_str)
-                        return True
+                stop_str = self._find_earliest_stop_str(tail_str)
+                if stop_str is not None:
+                    self.finished_reason = FINISH_MATCHED_STR(matched=stop_str)
+                    return True
 
             # Check stop regex
             if len(self.sampling_params.stop_regex_strs) > 0:
